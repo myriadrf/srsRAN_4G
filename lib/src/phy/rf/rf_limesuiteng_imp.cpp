@@ -95,10 +95,16 @@ int rf_limesuiteng_start_rx_stream(void* h, bool now)
 
   // Apply all collected settings
   int status = LimePlugin_Setup(lime, &handler->state);
-  if (status != 0)
+  if (status != 0) {
+    printf("Failed to setup device configuration\n");
     return SRSRAN_ERROR;
+  }
 
   status               = LimePlugin_Start(lime);
+  if (status != 0) {
+    printf("Failed to start RF streaming\n");
+    return SRSRAN_ERROR_CANT_START;
+  }
   handler->isStreaming = true;
   return status == 0 ? SRSRAN_SUCCESS : SRSRAN_ERROR_CANT_START;
 }
@@ -462,7 +468,6 @@ void rf_limesuiteng_get_time(void* h, time_t* secs, double* frac_secs)
   // }
 }
 
-
 int rf_limesuiteng_recv_with_time_multi(void*    h,
                                         void**   data,
                                         uint32_t nsamples,
@@ -473,6 +478,11 @@ int rf_limesuiteng_recv_with_time_multi(void*    h,
   rf_limesuiteng_handler_t* handler                = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime                   = handler->context;
   lime::complex32f_t*       dest[SRSRAN_MAX_PORTS] = {0};
+
+  if (!handler->isStreaming) {
+    printf("Streaming is not started\n");
+    return 0;
+  }
 
   for (size_t ch = 0; ch < lime->rxChannels.size(); ++ch) {
     cf_t* data_c = (cf_t*)data[ch];
@@ -526,6 +536,11 @@ int rf_limesuiteng_send_timed_multi(void*  h,
 {
   rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime    = handler->context;
+
+  if (!handler->isStreaming) {
+    printf("Streaming is not started\n");
+    return 0;
+  }
 
   StreamMeta meta{};
   meta.timestamp          = 0;
