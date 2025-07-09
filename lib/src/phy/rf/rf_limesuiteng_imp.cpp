@@ -218,7 +218,7 @@ private:
 int rf_limesuiteng_open_multi(char* args, void** h, uint32_t num_requested_channels)
 {
   // Create handler
-  rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)malloc(sizeof(rf_limesuiteng_handler_t));
+  rf_limesuiteng_handler_t* handler = new rf_limesuiteng_handler_t();
 
   LimePluginContext* lime = new LimePluginContext();
   // lime->currentWorkingDirectory = std::string(hostState->path);
@@ -268,7 +268,7 @@ int rf_limesuiteng_close(void* h)
   rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime    = handler->context;
   int                       status  = LimePlugin_Destroy(lime);
-  free(handler);
+  delete handler;
   return status == 0 ? SRSRAN_SUCCESS : SRSRAN_ERROR;
 }
 
@@ -461,6 +461,7 @@ void rf_limesuiteng_get_time(void* h, time_t* secs, double* frac_secs)
   //   timestamp_to_secs(handler->rx_rate, status.timestamp, secs, frac_secs);
   // }
 }
+
 
 int rf_limesuiteng_recv_with_time_multi(void*    h,
                                         void**   data,
