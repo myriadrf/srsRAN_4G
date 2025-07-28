@@ -338,7 +338,7 @@ int rf_limesuiteng_set_rx_gain(void* h, double gain)
 {
   rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime    = handler->context;
-  for (size_t ch = 0; ch < lime->rxChannels.size(); ++ch) {
+  for (size_t ch = 0; ch < handler->state.rx.gain.size(); ++ch) {
     if (rf_limesuiteng_set_rx_gain_ch(h, ch, gain) != SRSRAN_SUCCESS)
       return SRSRAN_ERROR;
   }
@@ -362,7 +362,7 @@ int rf_limesuiteng_set_tx_gain(void* h, double gain)
 {
   rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime    = handler->context;
-  for (size_t ch = 0; ch < lime->txChannels.size(); ++ch) {
+  for (size_t ch = 0; ch < handler->state.tx.gain.size(); ++ch) {
     if (rf_limesuiteng_set_tx_gain_ch(h, ch, gain) != SRSRAN_SUCCESS)
       return SRSRAN_ERROR;
   }
