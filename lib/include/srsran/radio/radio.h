@@ -142,8 +142,11 @@ private:
   constexpr static int    uhd_default_tx_adv_samples    = 98;
   constexpr static double uhd_default_tx_adv_offset_sec = 4 * 1e-6;
 
-  constexpr static int    lime_default_tx_adv_samples    = 98;
-  constexpr static double lime_default_tx_adv_offset_sec = 4 * 1e-6;
+  constexpr static int    lime_default_tx_adv_samples    = 39;
+  constexpr static double lime_default_tx_adv_offset_sec = 3 * 1e-6;
+
+  constexpr static int    limesuiteng_default_tx_adv_samples    = 37;
+  constexpr static double limesuiteng_default_tx_adv_offset_sec = 3 * 1e-6;
 
   constexpr static int    blade_default_tx_adv_samples    = 27;
   constexpr static double blade_default_tx_adv_offset_sec = 1e-6;

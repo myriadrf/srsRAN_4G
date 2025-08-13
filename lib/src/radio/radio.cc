@@ -950,6 +950,34 @@ double radio::get_dev_cal_tx_adv_sec(const std::string& device_name)
         nsamples = lime_default_tx_adv_samples + (int)(cur_tx_srate * lime_default_tx_adv_offset_sec);
       }
 
+    } else if (device_name == "LimeSDR") {
+      double srate_khz = round(cur_tx_srate / 1e3);
+      if (srate_khz == 1.92e3) {
+        // 6 PRB
+        nsamples = 28; // not tested due to lack of support this sample rate
+      } else if (srate_khz == 3.84e3) {
+        // 15 PRB
+        nsamples = 51; // not tested due to lack of support this sample rate
+      } else if (srate_khz == 5.76e3) {
+        // 25 PRB
+        nsamples = 70; // tested
+      } else if (srate_khz == 11.52e3) {
+        // 50 PRB
+        nsamples = 72; // tested
+      } else if (srate_khz == 15.36e3) {
+        // 75 PRB
+        nsamples = 86; // not tested due to performance of CM4 is not enough for this sample rate
+      } else if (srate_khz == 23.04e3) {
+        // 100 PRB
+        nsamples = 102; // not tested due to performance of CM4 is not enough for this sample rate
+      } else {
+        /* Interpolate from known values */
+        srsran::console(
+            "\nWarning TX/RX time offset for sampling rate %.0f KHz not calibrated. Using interpolated value\n\n",
+            cur_tx_srate);
+        nsamples = limesuiteng_default_tx_adv_samples + (int)(cur_tx_srate * limesuiteng_default_tx_adv_offset_sec);
+      }
+
     } else if (device_name == "uhd_x300") {
       // In X300 TX/RX offset is independent of sampling rate
       nsamples = 45;
