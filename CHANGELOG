@@ -1,5 +1,9 @@
 Change Log for Releases
 =======================
+## 25.10
+  * Various compilation fixes for newer compiler versions
+  * Smaller improvements in various layers
+
 ## 23.04
   * Introduced configurable s1 connection timer
   * Updated 4G RRC ASN.1 to Rel 17
@@ -9,7 +13,6 @@ Change Log for Releases
   * Updated eMBMS to fix various outstanding issues
   * Added basic support for RIC E2 interface
   * other bug-fixes and improved stability and performance in all parts
-
 
 ## 22.10
   * Fix DL NAS integrity checks in srsUE

@@ -35,6 +35,7 @@
 
 #include "limesuiteng/LimePlugin.h"
 #include "limesuiteng/limesuiteng.hpp"
+#include "limesuiteng/StreamMeta.h"
 using namespace lime;
 
 typedef struct {
@@ -489,13 +490,13 @@ int rf_limesuiteng_recv_with_time_multi(void*    h,
     dest[ch]     = (lime::complex32f_t*)data_c;
   }
 
-  lime::StreamMeta meta;
+  lime::StreamRxMeta meta;
   int              samplesGot = LimePlugin_Read_complex32f(lime, dest, nsamples, 0, meta);
   if (samplesGot < 0)
     return SRSRAN_ERROR;
 
   if (secs != NULL && frac_secs != NULL)
-    timestamp_to_secs(handler->rx_rate, meta.timestamp, secs, frac_secs);
+    timestamp_to_secs(handler->rx_rate, meta.timestamp.GetTicks(), secs, frac_secs);
 
   return samplesGot;
 }
@@ -542,14 +543,14 @@ int rf_limesuiteng_send_timed_multi(void*  h,
     return 0;
   }
 
-  StreamMeta meta{};
-  meta.timestamp          = 0;
-  meta.waitForTimestamp   = has_time_spec;
-  meta.flushPartialPacket = is_end_of_burst;
+  StreamTxMeta meta{};
+  meta.timestamp          = Timespec(0);
+  meta.hasTimestamp   = has_time_spec;
+  meta.flags = is_end_of_burst ? lime::StreamTxMeta::EndOfBurst : 0;
 
   if (has_time_spec) {
     srsran_timestamp_t time = {secs, frac_secs};
-    meta.timestamp          = srsran_timestamp_uint64(&time, handler->tx_rate);
+    meta.timestamp          = lime::Timespec(srsran_timestamp_uint64(&time, handler->tx_rate));
     if (secs < 0)
       return SRSRAN_ERROR;
     if (isnan(frac_secs))
