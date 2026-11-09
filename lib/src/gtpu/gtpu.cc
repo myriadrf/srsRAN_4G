@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "srsran/upper/gtpu.h"
 #include "srsran/common/int_helpers.h"
@@ -146,6 +128,11 @@ bool gtpu_read_ext_header(srsran::byte_buffer_t* pdu,
 
 bool gtpu_read_header(srsran::byte_buffer_t* pdu, gtpu_header_t* header, srslog::basic_logger& logger)
 {
+  if (pdu->N_bytes < GTPU_BASE_HEADER_LEN) {
+    logger.error("gtpu_read_header - PDU too small (%d B) for GTP-U base header", pdu->N_bytes);
+    return false;
+  }
+
   uint8_t* ptr = pdu->msg;
 
   header->flags = *ptr;
@@ -171,6 +158,10 @@ bool gtpu_read_header(srsran::byte_buffer_t* pdu, gtpu_header_t* header, srslog:
 
   // If E, S or PN are set, header is longer
   if (header->flags & (GTPU_FLAGS_EXTENDED_HDR | GTPU_FLAGS_SEQUENCE | GTPU_FLAGS_PACKET_NUM)) {
+    if (pdu->N_bytes < GTPU_EXTENDED_HEADER_LEN) {
+      logger.error("gtpu_read_header - PDU too small (%d B) for extended GTP-U header", pdu->N_bytes);
+      return false;
+    }
     pdu->msg += GTPU_EXTENDED_HEADER_LEN;
     pdu->N_bytes -= GTPU_EXTENDED_HEADER_LEN;
 

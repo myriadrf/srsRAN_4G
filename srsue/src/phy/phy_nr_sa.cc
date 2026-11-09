@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "srsue/hdr/phy/phy_nr_sa.h"
 #include "srsran/common/standard_streams.h"
@@ -268,7 +250,9 @@ bool phy_nr_sa::set_config(const srsran::phy_cfg_nr_t& cfg)
     bool ret = workers.set_config(config_nr);
 
     // Pass n_ta_offset to sync
-    sync.add_ta_offset(config_nr.t_offset);
+    if (config_nr.apply_t_offset) {
+      sync.add_ta_offset(config_nr.t_offset);
+    }
 
     // Notify PHY config completion
     if (stack != nullptr) {

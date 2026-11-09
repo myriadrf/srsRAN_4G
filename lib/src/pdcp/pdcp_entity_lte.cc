@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "srsran/upper/pdcp_entity_lte.h"
 #include "srsran/common/int_helpers.h"
@@ -145,6 +127,12 @@ void pdcp_entity_lte::reset()
 // GW/RRC interface
 void pdcp_entity_lte::write_sdu(unique_byte_buffer_t sdu, int upper_sn)
 {
+  // Reject an SDU whose reported length does not fit in the buffer.
+  if (sdu->N_bytes > SRSRAN_MAX_BUFFER_SIZE_BYTES - SRSRAN_BUFFER_HEADER_OFFSET) {
+    logger.error("Dropping %s SDU with invalid length. N_bytes=%d", rb_name.c_str(), sdu->N_bytes);
+    return;
+  }
+
   if (!active) {
     logger.warning("Dropping %s SDU due to inactive bearer", rb_name.c_str());
     return;
@@ -905,6 +893,10 @@ bool undelivered_sdus_queue::add_sdu(uint32_t                              sn,
   // Allocate buffer and exit on error
   srsran::unique_byte_buffer_t tmp = make_byte_buffer();
   if (tmp == nullptr) {
+    return false;
+  }
+  // Check if the SDU fits in the allocated buffer
+  if (sdu->N_bytes > tmp->get_tailroom()) {
     return false;
   }
 

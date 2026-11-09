@@ -1,22 +1,5 @@
-#
-# Copyright 2013-2023 Software Radio Systems Limited
-#
-# This file is part of srsRAN
-#
-# srsRAN is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of
-# the License, or (at your option) any later version.
-#
-# srsRAN is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU Affero General Public License for more details.
-#
-# A copy of the GNU Affero General Public License can be found in
-# the LICENSE file in the top-level directory of this distribution
-# and at http://www.gnu.org/licenses/.
-#
+# SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 
 ########################################################################
@@ -30,7 +13,12 @@ endif(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
+
+if(POLICY CMP0167) # CMAKE 3.30+ changed the FindBoost policy.
+  cmake_policy(SET CMP0167 OLD) # Use old behavior.
+endif()
+
 project( SRSRAN )
 message( STATUS "CMAKE_SYSTEM: " ${CMAKE_SYSTEM} )
 message( STATUS "CMAKE_SYSTEM_PROCESSOR: " ${CMAKE_SYSTEM_PROCESSOR} )
@@ -75,6 +63,7 @@ option(ENABLE_BLADERF        "Enable BladeRF"                           ON)
 option(ENABLE_SOAPYSDR       "Enable SoapySDR"                          ON)
 option(ENABLE_LIMESDR        "Enable LimeSDR"                           OFF)
 option(ENABLE_LIMESUITENG    "Enable LimeSuiteNG"                       ON)
+option(ENABLE_SKIQ           "Enable Sidekiq SDK"                       ON)
 option(ENABLE_ZEROMQ         "Enable ZeroMQ"                            ON)
 option(ENABLE_HARDSIM        "Enable support for SIM cards"             ON)
 
@@ -217,6 +206,15 @@ if(ENABLE_UHD)
   endif(UHD_FOUND)
 endif(ENABLE_UHD)
 
+# SKIQ
+if (ENABLE_SKIQ)
+  find_package(SKIQ)
+  if(SKIQ_FOUND)
+    include_directories(${SKIQ_INCLUDE_DIRS})
+    link_directories(${SKIQ_LIBRARY_DIRS})
+  endif(SKIQ_FOUND)
+endif (ENABLE_SKIQ)
+
 # BladeRF
 if(ENABLE_BLADERF)
   find_package(bladeRF)
@@ -263,12 +261,12 @@ if(ENABLE_TIMEPROF)
     add_definitions(-DENABLE_TIMEPROF)
 endif(ENABLE_TIMEPROF)
 
-if(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
+if(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR SKIQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
   set(RF_FOUND TRUE CACHE INTERNAL "RF frontend found")
-else(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
+else(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR SKIQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
   set(RF_FOUND FALSE CACHE INTERNAL "RF frontend found")
   add_definitions(-DDISABLE_RF)
-endif(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
+endif(BLADERF_FOUND OR UHD_FOUND OR SOAPYSDR_FOUND OR ZEROMQ_FOUND OR SKIQ_FOUND OR LIMESDR_FOUND OR limesuiteng_FOUND)
 
 # Boost
 if(BUILD_STATIC)
@@ -278,9 +276,7 @@ endif(BUILD_STATIC)
 set(BOOST_REQUIRED_COMPONENTS
   program_options
 )
-if(UHD_FOUND) # Ubuntu 18.04 requires component 'system' to link UHD
-  list(APPEND BOOST_REQUIRED_COMPONENTS "system")
-endif(UHD_FOUND)
+
 if(UNIX AND EXISTS "/usr/lib64")
   list(APPEND BOOST_LIBRARYDIR "/usr/lib64") #fedora 64-bit fix
 endif(UNIX AND EXISTS "/usr/lib64")
@@ -383,6 +379,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-comment -Wno-reorder -Wno-unused-variable -Wtype-limits -std=c++14 -fno-strict-aliasing")
 
   ADD_CXX_COMPILER_FLAG_IF_AVAILABLE("-Wno-unused-but-set-variable" HAVE_WNO_UNUSED_BUT_SET_VARIABLE)
+  ADD_CXX_COMPILER_FLAG_IF_AVAILABLE("-Wno-vla-cxx-extension" HAVE_WNO_VLA_CXX_EXTENSION)
 
   if (AUTO_DETECT_ISA)
     find_package(SSE)
@@ -477,15 +474,22 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIS_ARM")
     message(STATUS "Detected ARM processor")
     set(HAVE_NEON "True")
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    # Darwin reports arm64 where Linux reports aarch64. Both are 64-bit ARM
+    # and both have NEONv8; only the processor string differs.
+    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64")
       set(HAVE_NEONv8 "True")
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_NEONv8")
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_NEONv8")
-    endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64")
+    # -mfloat-abi and -mfpu are 32-bit ARM options. MATCHES "arm" also matches
+    # the string arm64, so on 64-bit ARM they were being added to a compiler
+    # that rejects them. Exclude the 64-bit processor strings.
+    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm"
+       AND NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm64"
+       AND NOT ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
       set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfloat-abi=hard -mfpu=neon")
       set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfloat-abi=hard -mfpu=neon")
-    endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
+    endif()
   else(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
     set(HAVE_NEON "False")
   endif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")

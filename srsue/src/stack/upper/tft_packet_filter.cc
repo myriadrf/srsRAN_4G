@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "srsue/hdr/stack/upper/tft_packet_filter.h"
 #include "srsran/upper/ipv6.h"
@@ -80,6 +62,11 @@ tft_packet_filter_t::tft_packet_filter_t(uint8_t                                
         memcpy(&ipv6_remote_addr, &tft.filter[idx], IPV6_ADDR_SIZE);
         idx += IPV6_ADDR_SIZE;
         ipv6_remote_addr_length = tft.filter[idx++];
+        // clamp to the maximum valid IPv6 prefix length so the mask below never
+        // overruns ipv6_remote_addr_mask[16]
+        if (ipv6_remote_addr_length > 128) {
+          ipv6_remote_addr_length = 128;
+        }
         // convert address length to mask:
         length_in_bytes = ipv6_remote_addr_length / 8;
         remaining_bits  = ipv6_remote_addr_length % 8;
@@ -96,6 +83,11 @@ tft_packet_filter_t::tft_packet_filter_t(uint8_t                                
         memcpy(&ipv6_local_addr, &tft.filter[idx], IPV6_ADDR_SIZE);
         idx += IPV6_ADDR_SIZE;
         ipv6_local_addr_length = tft.filter[idx++];
+        // clamp to the maximum valid IPv6 prefix length so the mask below never
+        // overruns ipv6_local_addr_mask[16]
+        if (ipv6_local_addr_length > 128) {
+          ipv6_local_addr_length = 128;
+        }
         // convert address length to mask:
         length_in_bytes = ipv6_local_addr_length / 8;
         remaining_bits  = ipv6_local_addr_length % 8;

@@ -1,8 +1,37 @@
+<!--
+SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 Change Log for Releases
 =======================
+
+## 26.10
+  * Added end-to-end CI tests over ZMQ with Open5GS (LTE TM1-4, carrier aggregation, intra-eNB and S1 handover, 5G NSA/SA)
+  * Added PDU session container with QFI to UL G-PDUs on N3 in srsGNB
+  * Added additional length and bound checks in PDCP, GTP-U and NAS (liblte_mme)
+  * Fixed NAS COUNT used for deciphering of 5G NAS messages
+  * Fixed 2x2 MMSE solver overflow for strong signals
+  * Fixed deadlocks and hangs on shutdown in srsUE sync and ZMQ RF
+  * Fixed handover completion in srsUE and HO notification after RRC reestablishment in srsENB
+  * Fixed IPv6 address handling in TFT packet filters
+  * Fixed PRACH preamble selection, SIB1 timing offset and sync sample discard in NR srsUE
+  * Increased minimum CMake version to 3.10 and fixed various find modules
+  * Added REUSE/SPDX license headers
+  * Other bug-fixes and improved stability in all parts
+
 ## 25.10
   * Various compilation fixes for newer compiler versions
   * Smaller improvements in various layers
+
+## 23.11
+  * Fixed srsUE to work with 5/10/15/20 MHz bandwidth in 5G SA mode.
+  * Added a new frequency estimation algorithm.
+  * Updated cmake file.
+  * Other bug-fixes and improved stability and performance in all parts
+
+## 23.04.1
+  * Hotfix applying of dedicated PUSCH and PDSCH DMRS configuration
 
 ## 23.04
   * Introduced configurable s1 connection timer

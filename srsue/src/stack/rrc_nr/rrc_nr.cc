@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "srsue/hdr/stack/rrc_nr/rrc_nr.h"
 #include "srsran/common/band_helper.h"
@@ -522,11 +504,12 @@ void rrc_nr::handle_sib1(const sib1_s& sib1)
   }
 
   phy_cfg_state = PHY_CFG_STATE_SA_SIB_CFG;
+  phy_cfg.apply_t_offset = true; // apply t_offset only once, after SIB1, otherwise RAR TA will be cleared.
   if (not phy->set_config(phy_cfg)) {
     logger.warning("Could not set phy config.");
     return;
   }
-
+  phy_cfg.apply_t_offset = false; // do not apply t_offset after RAR
   // Notify cell selector of successful SIB1 reception
   cell_selector.trigger(true);
 }
@@ -1941,11 +1924,11 @@ bool rrc_nr::update_sp_cell_cfg(const sp_cell_cfg_s& sp_cell_cfg)
     srsran::phy_cfg_nr_t current_phycfg = phy_cfg;
     current_phycfg.csi                  = prev_csi;
     phy_cfg_state                       = PHY_CFG_STATE_NSA_APPLY_SP_CELL;
-    phy->set_config(current_phycfg);
+    phy->set_config(current_phycfg); // t_offset is not applied
   } else {
     // apply full config immediately
     phy_cfg_state = PHY_CFG_STATE_SA_FULL_CFG;
-    phy->set_config(phy_cfg);
+    phy->set_config(phy_cfg); // t_offset is not applied
   }
 
   return true;
@@ -2312,7 +2295,7 @@ void rrc_nr::ra_completed()
   if (rrc_eutra) {
     logger.debug("Applying remaining CSI configuration.");
     phy_cfg_state = PHY_CFG_STATE_NSA_RA_COMPLETED;
-    phy->set_config(phy_cfg);
+    phy->set_config(phy_cfg); // t_offset is not applied
   } else {
     phy_cfg_state = PHY_CFG_STATE_NONE;
   }

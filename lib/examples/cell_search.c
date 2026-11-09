@@ -1,23 +1,5 @@
-/**
- * Copyright 2013-2023 Software Radio Systems Limited
- *
- * This file is part of srsRAN.
- *
- * srsRAN is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of
- * the License, or (at your option) any later version.
- *
- * srsRAN is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * A copy of the GNU Affero General Public License can be found in
- * the LICENSE file in the top-level directory of this distribution
- * and at http://www.gnu.org/licenses/.
- *
- */
+// SPDX-FileCopyrightText: Copyright (C) 2013-2026 Software Radio Systems Limited
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include <math.h>
 #include <signal.h>
@@ -82,28 +64,28 @@ void usage(char* prog)
 void parse_args(int argc, char** argv)
 {
   int opt;
-  while ((opt = getopt(argc, argv, "agsendvb")) != -1) {
+  while ((opt = getopt(argc, argv, "a:b:d:s:e:n:g:v")) != -1) {
     switch (opt) {
       case 'a':
-        rf_args = argv[optind];
+        rf_args = optarg;
         break;
       case 'b':
-        band = (int)strtol(argv[optind], NULL, 10);
+        band = (int)strtol(optarg, NULL, 10);
         break;
       case 'd':
-        rf_dev = argv[optind];
+        rf_dev = optarg;
         break;
       case 's':
-        earfcn_start = (int)strtol(argv[optind], NULL, 10);
+        earfcn_start = (int)strtol(optarg, NULL, 10);
         break;
       case 'e':
-        earfcn_end = (int)strtol(argv[optind], NULL, 10);
+        earfcn_end = (int)strtol(optarg, NULL, 10);
         break;
       case 'n':
-        cell_detect_config.max_frames_pss = (uint32_t)strtol(argv[optind], NULL, 10);
+        cell_detect_config.max_frames_pss = (uint32_t)strtol(optarg, NULL, 10);
         break;
       case 'g':
-        rf_gain = strtof(argv[optind], NULL);
+        rf_gain = strtof(optarg, NULL);
         break;
       case 'v':
         increase_srsran_verbose_level();
