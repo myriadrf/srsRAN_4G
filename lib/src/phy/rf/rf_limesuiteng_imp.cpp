@@ -20,8 +20,11 @@
  *
  */
 
+#include <cerrno>
+#include <cstdlib>
 #include <string.h>
 #include <string>
+#include <unordered_map>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -143,64 +146,100 @@ static void           LogCallback(LogLevel lvl, const std::string& msg)
   printf("%s\n", msg.c_str());
 }
 
+/// Translates srsRAN style device arguments into LimeSuiteNG plugin settings.
+///
+/// Format matches the other srsRAN RF drivers: comma separated key=value pairs,
+///   e.g. "port0=dev0,dev0=XTRX,port0_rx_path=LNAH,port0_linkFormat=I16"
+/// Values may optionally be enclosed in double quotes. A port aggregating several
+/// devices lists them separated by '+', e.g. "port0=dev0+dev1" (';' and ',' are
+/// already taken by srsRAN's per RF device and per argument splitting).
+/// If no port is specified, "port0=dev0" is assumed (first available device).
 class srsRAN_ParamProvider : public LimeSettingsProvider
 {
 private:
   static std::string trim(const std::string& s)
   {
-    std::string out = s;
-    while (!out.empty() && std::isspace(out[0]))
-      out = out.substr(1);
-    while (!out.empty() && std::isspace(out[out.size() - 1]))
-      out = out.substr(0, out.size() - 1);
-    return out;
+    const char* ws    = " \t\r\n";
+    size_t      begin = s.find_first_not_of(ws);
+    if (begin == std::string::npos)
+      return "";
+    size_t end = s.find_last_not_of(ws);
+    return s.substr(begin, end - begin + 1);
+  }
+
+  static std::string unquote(const std::string& s)
+  {
+    if (s.size() >= 2 && ((s.front() == '"' && s.back() == '"') || (s.front() == '\'' && s.back() == '\''))) {
+      return s.substr(1, s.size() - 2);
+    }
+    return s;
+  }
+
+  static bool isPortKey(const std::string& key)
+  {
+    // matches "port<N>" exactly, not "port<N>_..." settings
+    if (key.compare(0, 4, "port") != 0 || key.size() == 4)
+      return false;
+    return key.find_first_not_of("0123456789", 4) == std::string::npos;
   }
 
   void argsToMap(const std::string& args)
   {
-    bool        inKey = true;
-    std::string key, val;
-    for (size_t i = 0; i < args.size(); i++) {
-      const char ch = args[i];
-      if (inKey) {
-        if (ch == ':')
-          inKey = false;
-        else if (ch == ',')
-          inKey = true;
-        else
-          key += ch;
-      } else {
-        if (ch == ',')
-          inKey = true;
-        else
-          val += ch;
+    size_t pos = 0;
+    while (pos <= args.size()) {
+      size_t next = args.find(',', pos);
+      if (next == std::string::npos)
+        next = args.size();
+      std::string pair = trim(args.substr(pos, next - pos));
+      pos              = next + 1;
+
+      if (pair.empty() || pair == "auto")
+        continue;
+
+      size_t      eq  = pair.find('=');
+      std::string key = trim(pair.substr(0, eq));
+      std::string val = eq == std::string::npos ? "" : unquote(trim(pair.substr(eq + 1)));
+      if (key.empty()) {
+        ERROR("[limesuiteng] Ignoring device argument with empty key: '%s'", pair.c_str());
+        continue;
       }
-      if ((inKey && !val.empty()) || ((i + 1) == args.size())) {
-        key = trim(key);
-        val = trim(val);
-        printf("Key:Value{ %s:%s }\n", key.c_str(), val.c_str());
-        if (!key.empty()) {
-          if (val[0] == '"')
-            strings[key] = val.substr(1, val.size() - 2);
-          else
-            numbers[key] = stod(val);
+      if (eq == std::string::npos) {
+        ERROR("[limesuiteng] Ignoring device argument '%s', expected key=value", pair.c_str());
+        continue;
+      }
+
+      // LimeSuiteNG expects port device lists separated by ','
+      if (isPortKey(key)) {
+        for (char& ch : val) {
+          if (ch == '+')
+            ch = ',';
         }
-        key = "";
-        val = "";
       }
+
+      printf("[limesuiteng] %s=%s\n", key.c_str(), val.c_str());
+      values[key] = val;
+    }
+
+    bool hasPort = false;
+    for (const auto& kv : values) {
+      if (isPortKey(kv.first)) {
+        hasPort = true;
+        break;
+      }
+    }
+    if (!hasPort) {
+      values["port0"] = "dev0";
     }
   }
 
 public:
-  srsRAN_ParamProvider(const char* args) : mArgs(args) { argsToMap(mArgs); }
+  explicit srsRAN_ParamProvider(const char* args) { argsToMap(args ? std::string(args) : std::string()); }
 
   bool GetString(std::string& dest, const char* varname) override
   {
-    auto iter = strings.find(std::string(varname));
-    if (iter == strings.end())
+    auto iter = values.find(varname);
+    if (iter == values.end())
       return false;
-
-    printf("provided: %s\n", varname);
 
     dest = iter->second;
     return true;
@@ -208,18 +247,25 @@ public:
 
   bool GetDouble(double& dest, const char* varname) override
   {
-    auto iter = numbers.find(varname);
-    if (iter == numbers.end())
+    auto iter = values.find(varname);
+    if (iter == values.end())
       return false;
 
-    dest = iter->second;
+    const std::string& str = iter->second;
+    char*              end = nullptr;
+    errno                  = 0;
+    double val             = strtod(str.c_str(), &end);
+    if (str.empty() || errno != 0 || end == str.c_str() || *end != '\0') {
+      ERROR("[limesuiteng] Device argument %s=%s is not a valid number, ignoring", varname, str.c_str());
+      return false;
+    }
+
+    dest = val;
     return true;
   }
 
 private:
-  std::string                                  mArgs;
-  std::unordered_map<std::string, double>      numbers;
-  std::unordered_map<std::string, std::string> strings;
+  std::unordered_map<std::string, std::string> values;
 };
 
 int rf_limesuiteng_open_multi(char* args, void** h, uint32_t num_requested_channels)
@@ -239,8 +285,13 @@ int rf_limesuiteng_open_multi(char* args, void** h, uint32_t num_requested_chann
   srsRAN_ParamProvider configProvider(args);
 
   // gathers arguments and initializes devices
-  if (LimePlugin_Init(lime, LogCallback, &configProvider) != 0)
+  if (LimePlugin_Init(lime, LogCallback, &configProvider) != 0) {
+    LimePlugin_Destroy(lime);
+    delete lime;
+    delete handler;
+    *h = nullptr;
     return SRSRAN_ERROR;
+  }
 
   // runtime decided arguments
 
@@ -275,6 +326,7 @@ int rf_limesuiteng_close(void* h)
   rf_limesuiteng_handler_t* handler = (rf_limesuiteng_handler_t*)h;
   LimePluginContext*        lime    = handler->context;
   int                       status  = LimePlugin_Destroy(lime);
+  delete lime;
   delete handler;
   return status == 0 ? SRSRAN_SUCCESS : SRSRAN_ERROR;
 }

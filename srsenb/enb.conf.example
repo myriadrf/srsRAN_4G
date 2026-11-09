@@ -82,6 +82,11 @@ rx_gain = 40
 #device_args = auto
 #time_adv_nsamples = auto
 
+# Example for LimeSDR devices using LimeSuiteNG. Without device_args the first available
+# device is used. Several devices can be combined into one port with "+", e.g. port0=dev0+dev1
+#device_name = limesuiteng
+#device_args = port0=dev0,dev0=XTRX,port0_rx_path=LNAH,port0_tx_path=Band1,port0_linkFormat=I16
+
 # Example for ZMQ-based operation with TCP transport for I/Q samples
 #device_name = zmq
 #device_args = fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6
